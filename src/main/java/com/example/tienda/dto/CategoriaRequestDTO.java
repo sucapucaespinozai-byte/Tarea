@@ -16,5 +16,5 @@ public class CategoriaRequestDTO {
     private String descripcion;
 
     @NotNull(message = "El estado activo es obligatorio")
-    private Boolean activo;
+    private Integer activo;
 }
