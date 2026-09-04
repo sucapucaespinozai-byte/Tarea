@@ -1,4 +1,5 @@
 package com.example.tienda.controller;
+
 import com.example.tienda.dto.CategoriaRequestDTO;
 import com.example.tienda.dto.CategoriaResponseDTO;
 import com.example.tienda.service.service.CategoriaService;
@@ -24,13 +25,13 @@ public class CategoriaController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<CategoriaResponseDTO> buscarPorId(@PathVariable Long id) {
-        return ResponseEntity.ok(categoriaService.buscarPorId(id));
+    public ResponseEntity<CategoriaResponseDTO> buscar(@PathVariable Long id) {
+        return ResponseEntity.ok(categoriaService.buscar(id));
     }
 
     @PostMapping
-    public ResponseEntity<CategoriaResponseDTO> registrar(@Valid @RequestBody CategoriaRequestDTO dto) {
-        return new ResponseEntity<>(categoriaService.registrar(dto), HttpStatus.CREATED);
+    public ResponseEntity<CategoriaResponseDTO> crear(@Valid @RequestBody CategoriaRequestDTO dto) {
+        return new ResponseEntity<>(categoriaService.crear(dto), HttpStatus.CREATED);
     }
 
     @PutMapping("/{id}")

@@ -1,63 +1,85 @@
 package com.example.tienda.exception;
 
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.example.tienda.exception.DTO.ErrorResponseDTO;
+
 import java.time.LocalDateTime;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-
     @ExceptionHandler(RecursosNoEncontradoException.class)
-    public ResponseEntity<Map<String, Object>> handleRecursosNoEncontrado(RecursosNoEncontradoException ex) {
-        Map<String, Object> error = new HashMap<>();
-        error.put("timestamp", LocalDateTime.now());
-        error.put("status", HttpStatus.NOT_FOUND.value());
-        error.put("error", "No encontrado");
-        error.put("message", ex.getMessage());
-        return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+    public ResponseEntity<ErrorResponseDTO> handleNotFound(
+            RecursosNoEncontradoException ex,
+            HttpServletRequest request) {
+
+        ErrorResponseDTO error = new ErrorResponseDTO(
+                LocalDateTime.now(),
+                HttpStatus.NOT_FOUND.value(),
+                "Not Found",
+                ex.getMessage(),
+                request.getRequestURI(),
+                null
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(error);
     }
 
     @ExceptionHandler(ReglaNegocioException.class)
-    public ResponseEntity<Map<String, Object>> handleReglaNegocio(ReglaNegocioException ex) {
-        Map<String, Object> error = new HashMap<>();
-        error.put("timestamp", LocalDateTime.now());
-        error.put("status", HttpStatus.BAD_REQUEST.value());
-        error.put("error", "Error de Regla de Negocio");
-        error.put("message", ex.getMessage());
-        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    public ResponseEntity<ErrorResponseDTO> handleBusinessRule(
+            ReglaNegocioException ex,
+            HttpServletRequest request) {
+
+        ErrorResponseDTO error = new ErrorResponseDTO(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                "Conflict",
+                ex.getMessage(),
+                request.getRequestURI(),
+                null
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(error);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, Object>> handleValidationExceptions(MethodArgumentNotValidException ex) {
-        Map<String, String> errores = new HashMap<>();
-        for (org.springframework.validation.ObjectError error : ex.getBindingResult().getAllErrors()) {
-            String campo = ((FieldError) error).getField();
-            String mensaje = error.getDefaultMessage();
-            errores.put(campo, mensaje);
-        }
+    public ResponseEntity<ErrorResponseDTO> handleValidation(
+            MethodArgumentNotValidException ex,
+            HttpServletRequest request) {
 
-        Map<String, Object> respuesta = new HashMap<>();
-        respuesta.put("timestamp", LocalDateTime.now());
-        respuesta.put("status", HttpStatus.BAD_REQUEST.value());
-        respuesta.put("error", "Datos inválidos");
-        respuesta.put("messages", errores);
-        return new ResponseEntity<>(respuesta, HttpStatus.BAD_REQUEST);
-    }
+        Map<String, String> validationErrors = new LinkedHashMap<>();
 
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, Object>> handleGlobalException(Exception ex) {
-        Map<String, Object> error = new HashMap<>();
-        error.put("timestamp", LocalDateTime.now());
-        error.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
-        error.put("error", "Error interno del servidor");
-        error.put("message", ex.getMessage());
-        return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
+        ex.getBindingResult()
+                .getFieldErrors()
+                .forEach(error ->
+                        validationErrors.put(
+                                error.getField(),
+                                error.getDefaultMessage()
+                        )
+                );
+
+        ErrorResponseDTO error = new ErrorResponseDTO(
+                LocalDateTime.now(),
+                HttpStatus.BAD_REQUEST.value(),
+                "Bad Request",
+                "Existen errores de validación",
+                request.getRequestURI(),
+                validationErrors
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(error);
     }
 }

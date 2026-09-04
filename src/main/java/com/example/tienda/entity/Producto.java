@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "Productos")
+@Table(name = "productos")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -25,6 +25,9 @@ public class Producto {
 
     @Column(nullable = false)
     private Integer stock;
+
+    @Column(nullable = false)
+    private Boolean estado = true; 
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_categoria", nullable = false)

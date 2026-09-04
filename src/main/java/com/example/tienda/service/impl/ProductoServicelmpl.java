@@ -17,28 +17,27 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class ProductoServicelmpl  implements  ProductoService {
-
+public class ProductoServicelmpl implements ProductoService {
     private final ProductoRepository productoRepository;
     private final CategoriaRepository categoriaRepository;
     private final ProductoMapper productoMapper;
 
     @Override
-    public List<ProductoResponseDTO> listarProductos() {
+    public List<ProductoResponseDTO> listar() {
         return productoRepository.findAll().stream()
                 .map(productoMapper::toResponseDTO)
                 .collect(Collectors.toList());
     }
 
     @Override
-    public ProductoResponseDTO obtenerPorId(Long id) {
+    public ProductoResponseDTO buscar(Long id) {
         Producto producto = productoRepository.findById(id)
                 .orElseThrow(() -> new RecursosNoEncontradoException("Producto no encontrado con ID: " + id));
         return productoMapper.toResponseDTO(producto);
     }
 
     @Override
-    public ProductoResponseDTO guardarProducto(ProductoRequestDTO requestDTO) {
+    public ProductoResponseDTO crear(ProductoRequestDTO requestDTO) {
         Categoria categoria = categoriaRepository.findById(requestDTO.getCategoriaId())
                 .orElseThrow(() -> new RecursosNoEncontradoException("Categoría no encontrada con ID: " + requestDTO.getCategoriaId()));
 

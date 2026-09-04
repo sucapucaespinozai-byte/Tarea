@@ -4,23 +4,15 @@ import com.example.tienda.dto.CategoriaRequestDTO;
 import com.example.tienda.dto.CategoriaResponseDTO;
 import com.example.tienda.entity.Categoria;
 import com.example.tienda.exception.RecursosNoEncontradoException;
-import com.example.tienda.exception.ReglaNegocioException;
 import com.example.tienda.repository.CategoriaRepository;
 import com.example.tienda.service.service.CategoriaService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
-
-public class CategoriaServicelmpl implements  CategoriaService {
-
-    private static final Logger LOG = LoggerFactory.getLogger(CategoriaServicelmpl.class);
-
+public class CategoriaServicelmpl implements CategoriaService {
     private final CategoriaRepository categoriaRepository;
 
     public CategoriaServicelmpl(CategoriaRepository categoriaRepository) {
@@ -33,7 +25,6 @@ public class CategoriaServicelmpl implements  CategoriaService {
         dto.setNombre(categoria.getNombre());
         dto.setDescripcion(categoria.getDescripcion());
         dto.setActivo(categoria.getActivo());
-        dto.setCreatedAt(categoria.getCreatedAt());
         return dto;
     }
 
@@ -45,47 +36,40 @@ public class CategoriaServicelmpl implements  CategoriaService {
     }
 
     @Override
-    public CategoriaResponseDTO buscarPorId(Long aLong) {
-        Categoria categoria = categoriaRepository.findById(aLong)
-                .orElseThrow(() -> new RecursosNoEncontradoException("Categoría no encontrada con ID: " + aLong));
+    public CategoriaResponseDTO buscar(Long id) {
+        Categoria categoria = categoriaRepository.findById(id)
+                .orElseThrow(() -> new RecursosNoEncontradoException("Categoría no encontrada con ID: " + id));
         return convertirADto(categoria);
     }
 
     @Override
-    public CategoriaResponseDTO registrar(CategoriaRequestDTO categoriaRequestDTO) {
-        if (categoriaRepository.findByNombre(categoriaRequestDTO.getNombre()).isPresent()) {
-            throw new ReglaNegocioException("Ya existe una categoría con el nombre: " + categoriaRequestDTO.getNombre());
-        }
+    public CategoriaResponseDTO crear(CategoriaRequestDTO dto) {
         Categoria categoria = new Categoria();
-        categoria.setNombre(categoriaRequestDTO.getNombre());
-        categoria.setDescripcion(categoriaRequestDTO.getDescripcion());
-        categoria.setActivo(categoriaRequestDTO.getActivo());
+        categoria.setNombre(dto.getNombre());
+        categoria.setDescripcion(dto.getDescripcion());
+        categoria.setActivo(dto.getActivo());
+
         Categoria guardada = categoriaRepository.save(categoria);
         return convertirADto(guardada);
     }
 
     @Override
-    public CategoriaResponseDTO actualizar(Long aLong, CategoriaRequestDTO categoriaRequestDTO) {
-        Categoria existente = categoriaRepository.findById(aLong)
-                .orElseThrow(() -> new RecursosNoEncontradoException("Categoría no encontrada con ID: " + aLong));
+    public CategoriaResponseDTO actualizar(Long id, CategoriaRequestDTO dto) {
+        Categoria existente = categoriaRepository.findById(id)
+                .orElseThrow(() -> new RecursosNoEncontradoException("Categoría no encontrada con ID: " + id));
 
-        categoriaRepository.findByNombre(categoriaRequestDTO.getNombre()).ifPresent(cat -> {
-            if (!cat.getId().equals(aLong)) {
-                throw new ReglaNegocioException("Ya existe otra categoría con el nombre: " + categoriaRequestDTO.getNombre());
-            }
-        });
+        existente.setNombre(dto.getNombre());
+        existente.setDescripcion(dto.getDescripcion());
+        existente.setActivo(dto.getActivo());
 
-        existente.setNombre(categoriaRequestDTO.getNombre());
-        existente.setDescripcion(categoriaRequestDTO.getDescripcion());
-        existente.setActivo(categoriaRequestDTO.getActivo());
         Categoria actualizada = categoriaRepository.save(existente);
         return convertirADto(actualizada);
     }
 
     @Override
-    public void eliminar(Long aLong) {
-        Categoria existente = categoriaRepository.findById(aLong)
-                .orElseThrow(() -> new RecursosNoEncontradoException("Categoría no encontrada con ID: " + aLong));
+    public void eliminar(Long id) {
+        Categoria existente = categoriaRepository.findById(id)
+                .orElseThrow(() -> new RecursosNoEncontradoException("Categoría no encontrada con ID: " + id));
         categoriaRepository.delete(existente);
     }
 }
