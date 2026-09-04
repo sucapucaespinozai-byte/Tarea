@@ -97,7 +97,6 @@ public class VentaServicelmpl implements VentaService {
             int cantidad = detalleDto.getCantidad();
             BigDecimal subtotal = precioUnitario.multiply(BigDecimal.valueOf(cantidad));
 
-            // DESCUENTO DE STOCK
             producto.setStock(producto.getStock() - cantidad);
             productoRepository.save(producto);
 
