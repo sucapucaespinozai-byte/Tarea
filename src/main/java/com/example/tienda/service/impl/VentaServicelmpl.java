@@ -1,25 +1,38 @@
 package com.example.tienda.service.impl;
 
+import com.example.tienda.dto.DetalleVentaResponseDTO;
 import com.example.tienda.dto.VentaRequestDTO;
 import com.example.tienda.dto.VentaResponseDTO;
+import com.example.tienda.entity.Cliente;
 import com.example.tienda.entity.DetalleVenta;
+import com.example.tienda.entity.Producto;
 import com.example.tienda.entity.Venta;
+import com.example.tienda.enums.EstadoVenta;
 import com.example.tienda.exception.RecursosNoEncontradoException;
 import com.example.tienda.exception.ReglaNegocioException;
 import com.example.tienda.repository.ClienteRepository;
 import com.example.tienda.repository.ProductoRepository;
 import com.example.tienda.repository.VentaRepository;
 import com.example.tienda.service.service.VentaService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class VentaServicelmpl implements VentaService {
+    private static final Logger log = LoggerFactory.getLogger(VentaServicelmpl.class);
+
+    private static final String ORDEN_POR_DEFECTO = "fecha";
+    private static final List<String> CAMPOS_ORDENABLES = List.of("id", "fecha", "total", "estado");
+
     private final VentaRepository ventaRepository;
     private final ClienteRepository clienteRepository;
     private final ProductoRepository productoRepository;
@@ -33,38 +46,136 @@ public class VentaServicelmpl implements VentaService {
         this.productoRepository = productoRepository;
     }
 
-    private VentaResponseDTO convertirADto(Venta venta) {
-        VentaResponseDTO dto = new VentaResponseDTO();
-        dto.setId(venta.getId());
-        dto.setFecha(venta.getFecha());
-        dto.setTotal(venta.getTotal());
-        return dto;
+    private VentaResponseDTO convertirResponse(Venta venta) {
+        List<DetalleVentaResponseDTO> detalles = venta.getDetalles()
+                .stream()
+                .map(detalle ->
+                        new DetalleVentaResponseDTO(
+                                detalle.getProducto().getId(),
+                                detalle.getProducto().getNombre(),
+                                detalle.getCantidad(),
+                                detalle.getPrecio(),
+                                detalle.getSubtotal()
+                        )
+                ).toList();
+
+        String clienteNombre = venta.getCliente().getNombres() + " " + venta.getCliente().getApellidos();
+
+        return new VentaResponseDTO(
+                venta.getId(),
+                venta.getFecha(),
+                venta.getCliente().getId(),
+                clienteNombre,
+                venta.getEstado().name(),
+                venta.getTotal(),
+                detalles
+        );
+    }
+
+    private Sort construirSort(String ordenarPor, String direccion) {
+        String campo = (ordenarPor == null || ordenarPor.isBlank())
+                ? ORDEN_POR_DEFECTO
+                : ordenarPor.trim();
+
+        if (!CAMPOS_ORDENABLES.contains(campo)) {
+            throw new ReglaNegocioException(
+                    "El campo de ordenamiento '"
+                            + campo
+                            + "' no está permitido. Campos válidos: "
+                            + CAMPOS_ORDENABLES);
+        }
+
+        String sentido = (direccion == null || direccion.isBlank())
+                ? "desc"
+                : direccion.trim();
+
+        if (!sentido.equalsIgnoreCase("asc")
+                && !sentido.equalsIgnoreCase("desc")) {
+            throw new ReglaNegocioException(
+                    "La dirección de ordenamiento '"
+                            + sentido
+                            + "' no está permitida. Valores válidos: asc, desc");
+        }
+
+        return sentido.equalsIgnoreCase("asc")
+                ? Sort.by(campo).ascending()
+                : Sort.by(campo).descending();
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<VentaResponseDTO> listar() {
-        return ventaRepository.findAll().stream()
-                .map(this::convertirADto)
-                .collect(Collectors.toList());
+        return ventaRepository.findAll().stream().map(this::convertirResponse).toList();
+    }
+
+    @Override
+    public VentaResponseDTO registrar(VentaRequestDTO request) {
+        return null;
     }
 
     @Override
     @Transactional(readOnly = true)
     public VentaResponseDTO buscar(Long id) {
         Venta venta = ventaRepository.findById(id)
-                .orElseThrow(() -> new RecursosNoEncontradoException("Venta no encontrada con ID: " + id));
-        return convertirADto(venta);
+                .orElseThrow(() -> new RecursosNoEncontradoException("Venta no encontrada con id: " + id));
+        return convertirResponse(venta);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<VentaResponseDTO> buscar(Long clienteId, EstadoVenta estado, LocalDate desde, LocalDate hasta, String ordenarPor, String direccion) {
+        long inicio = System.currentTimeMillis();
+
+        log.info("Inicio buscar ventas | clienteId={} | estado={} | "
+                        + "desde={} | hasta={} | ordenarPor={} | direccion={}",
+                clienteId, estado, desde, hasta, ordenarPor, direccion);
+
+        if (desde != null
+                && hasta != null
+                && desde.isAfter(hasta)) {
+
+            throw new ReglaNegocioException(
+                    "El rango de fechas es inválido: 'desde' ("
+                            + desde
+                            + ") es posterior a 'hasta' ("
+                            + hasta + ")");
+        }
+
+        Sort sort = construirSort(ordenarPor, direccion);
+
+        LocalDateTime desdeHora = (desde == null)
+                ? null
+                : desde.atStartOfDay();
+
+        LocalDateTime hastaHora = (hasta == null)
+                ? null
+                : hasta.atTime(LocalTime.MAX);
+
+        List<VentaResponseDTO> resultado =
+                ventaRepository
+                        .buscar(clienteId, estado, desdeHora, hastaHora, sort)
+                        .stream()
+                        .map(this::convertirResponse)
+                        .toList();
+
+        log.info("Fin buscar ventas | clienteId={} | estado={} | "
+                        + "desde={} | hasta={} | orden={} {} | "
+                        + "filas={} | duracionMs={}",
+                clienteId, estado, desde, hasta, ordenarPor, direccion,
+                resultado.size(),
+                System.currentTimeMillis() - inicio);
+
+        return resultado;
     }
 
     @Override
     @Transactional
     public VentaResponseDTO crear(VentaRequestDTO request) {
-        var cliente = clienteRepository.findById(request.getClienteId())
-                .orElseThrow(() -> new RecursosNoEncontradoException("Cliente no encontrado con ID: " + request.getClienteId()));
+        Cliente cliente = clienteRepository.findById(request.getClienteId())
+                .orElseThrow(() -> new RecursosNoEncontradoException("Cliente no encontrado con id: " + request.getClienteId()));
 
-        if (Boolean.FALSE.equals(cliente.getEstado())) {
-            throw new ReglaNegocioException("El cliente se encuentra inactivo y no puede realizar ventas.");
+        if (!Boolean.TRUE.equals(cliente.getEstado())) {
+            throw new ReglaNegocioException("No se puede registrar una venta para un cliente inactivo");
         }
 
         if (request.getDetalles() == null || request.getDetalles().isEmpty()) {
@@ -74,46 +185,47 @@ public class VentaServicelmpl implements VentaService {
         Venta venta = new Venta();
         venta.setCliente(cliente);
         venta.setFecha(LocalDateTime.now());
+        venta.setEstado(EstadoVenta.REGISTRADA);
 
-        BigDecimal totalVenta = BigDecimal.ZERO;
+        BigDecimal total = BigDecimal.ZERO;
 
-        for (var detalleDto : request.getDetalles()) {
-            if (detalleDto.getCantidad() <= 0) {
+        for (var item : request.getDetalles()) {
+            if (item.getCantidad() <= 0) {
                 throw new IllegalArgumentException("La cantidad del producto debe ser mayor a cero.");
             }
 
-            var producto = productoRepository.findById(detalleDto.getProductoId())
-                    .orElseThrow(() -> new RecursosNoEncontradoException("Producto no encontrado con ID: " + detalleDto.getProductoId()));
+            Producto producto = productoRepository.findById(item.getProductoId()).orElseThrow(() ->
+                    new RecursosNoEncontradoException("Producto no encontrado con id: " + item.getProductoId()));
 
-            if (Boolean.FALSE.equals(producto.getEstado())) {
-                throw new ReglaNegocioException("El producto se encuentra inactivo y no puede ser vendido.");
+            if (!Boolean.TRUE.equals(producto.getEstado())) {
+                throw new ReglaNegocioException("El producto " + producto.getNombre() + " se encuentra inactivo");
             }
 
-            if (producto.getStock() < detalleDto.getCantidad()) {
-                throw new ReglaNegocioException("Stock insuficiente para el producto con ID: " + producto.getId());
+            if (producto.getStock() < item.getCantidad()) {
+                throw new ReglaNegocioException("Stock insuficiente para " + producto.getNombre() + ". Disponible: " + producto.getStock()
+                        + ", solicitado: " + item.getCantidad());
             }
 
-            BigDecimal precioUnitario = producto.getPrecio();
-            int cantidad = detalleDto.getCantidad();
-            BigDecimal subtotal = precioUnitario.multiply(BigDecimal.valueOf(cantidad));
-
-            producto.setStock(producto.getStock() - cantidad);
-            productoRepository.save(producto);
+            BigDecimal subtotal = producto.getPrecio().multiply(BigDecimal.valueOf(item.getCantidad()));
 
             DetalleVenta detalle = new DetalleVenta();
             detalle.setProducto(producto);
-            detalle.setCantidad(cantidad);
-            detalle.setPrecio(precioUnitario);
+            detalle.setCantidad(item.getCantidad());
+            detalle.setPrecio(producto.getPrecio());
             detalle.setSubtotal(subtotal);
 
             venta.agregarDetalle(detalle);
-            totalVenta = totalVenta.add(subtotal);
+            total = total.add(subtotal);
+
+            producto.setStock(producto.getStock() - item.getCantidad());
+            productoRepository.save(producto);
         }
 
-        venta.setTotal(totalVenta);
+        venta.setTotal(total);
 
         Venta guardada = ventaRepository.save(venta);
-        return convertirADto(guardada);
+
+        return convertirResponse(guardada);
     }
 
     @Override
@@ -123,7 +235,7 @@ public class VentaServicelmpl implements VentaService {
                 .orElseThrow(() -> new RecursosNoEncontradoException("Venta no encontrada con ID: " + id));
 
         Venta actualizada = ventaRepository.save(existente);
-        return convertirADto(actualizada);
+        return convertirResponse(actualizada);
     }
 
     @Override

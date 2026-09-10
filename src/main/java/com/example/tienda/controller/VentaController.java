@@ -1,14 +1,18 @@
 package com.example.tienda.controller;
 
+
 import com.example.tienda.dto.VentaRequestDTO;
 import com.example.tienda.dto.VentaResponseDTO;
+import com.example.tienda.enums.EstadoVenta;
 import com.example.tienda.service.service.VentaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -21,6 +25,40 @@ public class VentaController {
     @GetMapping
     public ResponseEntity<List<VentaResponseDTO>> listar() {
         return ResponseEntity.ok(ventaService.listar());
+    }
+
+    @GetMapping("/buscar")
+    public ResponseEntity<List<VentaResponseDTO>> buscar(
+            @RequestParam(required = false)
+            Long clienteId,
+
+            @RequestParam(required = false)
+            EstadoVenta estado,
+
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate desde,
+
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate hasta,
+
+            @RequestParam(required = false, defaultValue = "fecha")
+            String ordenarPor,
+
+            @RequestParam(required = false, defaultValue = "desc")
+            String direccion) {
+
+        return ResponseEntity.ok(
+                ventaService.buscar(
+                        clienteId,
+                        estado,
+                        desde,
+                        hasta,
+                        ordenarPor,
+                        direccion
+                )
+        );
     }
 
     @GetMapping("/{id}")
@@ -44,4 +82,5 @@ public class VentaController {
         ventaService.eliminar(id);
         return ResponseEntity.noContent().build();
     }
+
 }
