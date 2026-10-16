@@ -47,8 +47,7 @@ public class CategoriaServicelmpl implements CategoriaService {
         Categoria categoria = new Categoria();
         categoria.setNombre(dto.getNombre());
         categoria.setDescripcion(dto.getDescripcion());
-        categoria.setActivo(dto.getActivo());
-
+        categoria.setActivo(dto.getActivo() != null && dto.getActivo() ? 1 : 0);
         Categoria guardada = categoriaRepository.save(categoria);
         return convertirADto(guardada);
     }
@@ -60,7 +59,7 @@ public class CategoriaServicelmpl implements CategoriaService {
 
         existente.setNombre(dto.getNombre());
         existente.setDescripcion(dto.getDescripcion());
-        existente.setActivo(dto.getActivo());
+        existente.setActivo(dto.getActivo() != null && dto.getActivo() ? 1 : 0);
 
         Categoria actualizada = categoriaRepository.save(existente);
         return convertirADto(actualizada);

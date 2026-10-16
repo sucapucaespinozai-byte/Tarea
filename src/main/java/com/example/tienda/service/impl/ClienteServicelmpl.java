@@ -7,10 +7,11 @@ import com.example.tienda.exception.RecursosNoEncontradoException;
 import com.example.tienda.exception.ReglaNegocioException;
 import com.example.tienda.repository.ClienteRepository;
 import com.example.tienda.service.service.ClienteService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class ClienteServicelmpl implements ClienteService {
@@ -34,10 +35,15 @@ public class ClienteServicelmpl implements ClienteService {
     }
 
     @Override
-    public List<ClienteResponseDTO> listar() {
-        return clienteRepository.findAll().stream()
-                .map(this::convertirADto)
-                .collect(Collectors.toList());
+    public Page<ClienteResponseDTO> listar(int pagina, int tamanio, String ordenarPor, String direccion) {
+        Sort sort = direccion.equalsIgnoreCase("desc")
+                ? Sort.by(ordenarPor).descending()
+                : Sort.by(ordenarPor).ascending();
+
+        Pageable pageable = PageRequest.of(pagina, tamanio, sort);
+
+        return clienteRepository.findAll(pageable)
+                .map(this::convertirADto);
     }
 
     @Override

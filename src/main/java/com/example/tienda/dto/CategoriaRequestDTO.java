@@ -1,7 +1,6 @@
 package com.example.tienda.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -15,6 +14,6 @@ public class CategoriaRequestDTO {
     @Size(max = 255, message = "La descripción no puede tener más de 255 caracteres")
     private String descripcion;
 
-    @NotNull(message = "El estado activo es obligatorio")
-    private Integer activo;
+    // Si no se envía desde el formulario, por defecto será true (activo)
+    private Boolean activo = true;
 }
