@@ -15,7 +15,6 @@ import com.example.tienda.service.service.AuthService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -83,20 +82,29 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public void cambiarPassword(String username, CambiarPasswordRequestDTO request) {
+        log.info("Solicitud de cambio de contraseña para el usuario: {}", username);
         Usuario usuario = buscar(username);
+
+        // 1. Validar que la contraseña actual coincida con el hash -> 409 según la guía
         if (!passwordEncoder.matches(request.getPasswordActual(), usuario.getPassword())) {
-            throw new BadCredentialsException("Usuario o contraseña incorrectos");
+            throw new ReglaNegocioException("La contraseña actual no es correcta");
         }
+
+        // 2. Validar que la nueva contraseña sea distinta de la actual -> 409
         if (passwordEncoder.matches(request.getPasswordNueva(), usuario.getPassword())) {
             throw new ReglaNegocioException("La nueva contraseña debe ser distinta de la actual");
         }
+
+        // 3. Validar límite de bytes por seguridad (máximo 72 bytes para BCrypt)
         if (request.getPasswordNueva().getBytes(StandardCharsets.UTF_8).length > 72) {
             throw new ReglaNegocioException("La nueva contraseña no puede superar 72 bytes");
         }
 
+        // 4. Guardar el nuevo hash cifrado
         usuario.setPassword(passwordEncoder.encode(request.getPasswordNueva()));
         usuarioRepository.save(usuario);
-        log.info("Contraseña actualizada para usuario={}", usuario.getUsername());
+
+        log.info("Contraseña actualizada exitosamente para el usuario: {}", username);
     }
 
     private Usuario buscar(String username) {

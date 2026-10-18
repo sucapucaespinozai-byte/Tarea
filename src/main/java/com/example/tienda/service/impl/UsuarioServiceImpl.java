@@ -124,4 +124,51 @@ public class UsuarioServiceImpl implements UsuarioService {
                 .map(usuarioMapper::toRolResponse)
                 .toList();
     }
+
+    @Override
+    @Transactional
+    public UsuarioResponseDTO asignarRoles(Long id, Set<Long> rolIds, String usernameAdminActual) {
+        log.info("Solicitud para asignar roles al usuario ID: {} por el admin: {}", id, usernameAdminActual);
+
+        Usuario usuario = usuarioRepository.findById(id)
+                .orElseThrow(() -> new RecursosNoEncontradoException("Usuario no encontrado con ID: " + id));
+
+        List<Rol> roles = rolRepository.findAllById(rolIds);
+        if (roles.size() != rolIds.size()) {
+            Set<Long> missingIds = new HashSet<>(rolIds);
+            roles.stream().map(Rol::getId).forEach(missingIds::remove);
+            throw new RecursosNoEncontradoException("Roles no encontrados: " + missingIds);
+        }
+
+        // Regla de seguridad: Un ADMIN no puede quitarse a sí mismo el rol de ADMIN (409)
+        boolean esElMismoAdmin = usuario.getUsername().equalsIgnoreCase(usernameAdminActual);
+        boolean seQuitaRolAdmin = roles.stream().noneMatch(r -> r.getNombre().equalsIgnoreCase("ADMIN"));
+        if (esElMismoAdmin && seQuitaRolAdmin) {
+            throw new ReglaNegocioException("Un administrador no puede quitarse a sí mismo el rol de ADMIN");
+        }
+
+        usuario.setRoles(new HashSet<>(roles));
+        Usuario saved = usuarioRepository.save(usuario);
+        log.info("Roles actualizados exitosamente para el usuario: {}", saved.getUsername());
+        return usuarioMapper.toUsuarioResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public UsuarioResponseDTO cambiarEstado(Long id, Boolean estado, String usernameAdminActual) {
+        log.info("Solicitud para cambiar estado (activo={}) al usuario ID: {} por el admin: {}", estado, id, usernameAdminActual);
+
+        Usuario usuario = usuarioRepository.findById(id)
+                .orElseThrow(() -> new RecursosNoEncontradoException("Usuario no encontrado con ID: " + id));
+
+        // Regla de seguridad: Un ADMIN no puede desactivarse a sí mismo (409)
+        if (!estado && usuario.getUsername().equalsIgnoreCase(usernameAdminActual)) {
+            throw new ReglaNegocioException("Un administrador no puede desactivarse a sí mismo");
+        }
+
+        usuario.setEstado(estado);
+        Usuario saved = usuarioRepository.save(usuario);
+        log.info("Estado actualizado exitosamente para el usuario {}: activo={}", saved.getUsername(), estado);
+        return usuarioMapper.toUsuarioResponse(saved);
+    }
 }

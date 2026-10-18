@@ -10,7 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PutMapping; // Cambiado a PutMapping
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -32,7 +32,7 @@ public class AuthController {
         return ResponseEntity.ok(authService.usuarioActual(authentication.getName()));
     }
 
-    @PatchMapping("/password")
+    @PutMapping("/password") // Requerido por la guía como PUT /api/v1/auth/password
     public ResponseEntity<Void> cambiarPassword(
             Authentication authentication,
             @Valid @RequestBody CambiarPasswordRequestDTO request) {
